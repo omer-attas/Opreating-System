@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة العمليات في أنظمة التشغيل</title>
+    <style>
+        /* المتغيرات والخطوط الأساسية */
+        :root {
+            --color-new: #ff66b2;      /* وردي */
+            --color-ready: #ffa500;    /* برتقالي */
+            --color-running: #28a745;  /* أخضر */
+            --color-waiting: #007bff;  /* أزرق */
+            --color-terminated: #6c757d; /* رمادي */
+            --bg-color: #f4f7f9;
+            --text-color: #2c3e50;
+            
+            /* ألوان تدريبات 4 و 5 */
+            --c-p1: #ff9ff3;
+            --c-p2: #54a0ff;
+            --c-p3: #1dd1a1;
+            --c-p4: #feca57;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* التنسيقات العامة للواجهة */
+        header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        h1 { margin: 0; font-size: 1.5rem; color: #2980b9; }
+        
+        .legend { display: flex; gap: 15px; font-size: 0.9rem; font-weight: bold; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .legend-color { width: 15px; height: 15px; border-radius: 3px; display: inline-block; }
+
+        .tabs { display: flex; justify-content: center; margin: 20px 0; gap: 10px; flex-wrap: wrap; }
+        .tab-btn { background: #e0e6ed; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold; font-family: inherit; transition: all 0.3s; }
+        .tab-btn.active { background: #2980b9; color: white; box-shadow: 0 4px 8px rgba(41,128,185,0.4); }
+        .tab-btn:hover:not(.active) { background: #bdc3c7; }
+
+        .tab-content { display: none; max-width: 1200px; margin: 0 auto; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+
+        /* التشبيه البصري */
+        .metaphor-banner { background: #fff3cd; border-right: 5px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+        .info-banner { background: #e8f4f8; border-right: 5px solid #2980b9; padding: 15px; margin-bottom: 20px; border-radius: 5px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+
+        /* حاوية مكونات الحاسب */
+        .hardware-layout { display: flex; gap: 15px; overflow-x: auto; padding: 10px 5px; min-height: 280px; align-items: stretch; }
+        .hw-component { flex: 1; min-width: 180px; border: 2px dashed #bdc3c7; border-radius: 10px; padding: 15px; background: #fafbfc; display: flex; flex-direction: column; position: relative; transition: all 0.3s; }
+        .hw-component h3 { margin: 0 0 5px 0; font-size: 1.1rem; text-align: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; }
+        .hw-desc { font-size: 0.8rem; text-align: center; color: #7f8c8d; margin-bottom: 10px; display: block; }
+        .glow { border-color: #f1c40f !important; box-shadow: 0 0 15px rgba(241, 196, 15, 0.6); background: #fffae6; }
+        
+        /* شارة المعالج ومناطق الذاكرة */
+        .cpu-badge { background: #e74c3c; color: white; font-size: 0.75rem; text-align: center; border-radius: 15px; padding: 3px 8px; margin-bottom: 10px; font-weight: bold; }
+        .cpu-cycle { font-size: 0.75rem; text-align: center; color: #34495e; background: #ecf0f1; padding: 5px; border-radius: 5px; margin-top: auto; }
+        .ram-areas { display: flex; flex-direction: column; gap: 10px; flex-grow: 1; }
+        .ram-area { border: 1px solid #ccc; border-radius: 5px; padding: 10px; min-height: 60px; background: rgba(255,255,255,0.8); }
+        .ram-area-title { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #34495e; }
+
+        /* تصميم رقاقة العملية وأزرار التحكم */
+        .process-chip { padding: 8px 12px; border-radius: 6px; color: white; font-weight: bold; font-size: 0.9rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s; margin: 5px 0; display: flex; flex-direction: column; gap: 5px; }
+        .process-controls { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+        .process-btn { background: rgba(255,255,255,0.9); color: #333; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-family: inherit; font-weight: bold;}
+        .process-btn:hover { background: #fff; transform: scale(1.05); }
+        .controls-bar { display: flex; justify-content: space-between; margin-top: 20px; align-items: center; background: #ecf0f1; padding: 15px; border-radius: 8px; flex-wrap: wrap; gap: 10px; }
+        .nav-btn, .action-btn { background: #34495e; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-family: inherit; }
+        .nav-btn:disabled, .action-btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .action-btn.green { background: #2ecc71; }
+        .action-btn.green:hover { background: #27ae60; }
+        .action-btn.purple { background: #9b59b6; }
+        .action-btn.purple:hover { background: #8e44ad; }
+        #step-text { flex-grow: 1; text-align: center; font-size: 1.1rem; font-weight: bold; margin: 0 20px; min-width: 250px; }
+        .free-play-controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .add-btn { background: #2ecc71; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: bold; font-family: inherit; }
+        .add-btn:hover { background: #27ae60; }
+
+        /* تنسيقات الجداول للتدريبات */
+        .ex-container { display: flex; flex-direction: column; gap: 20px; }
+        .table-responsive { overflow-x: auto; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        table { border-collapse: collapse; width: 100%; text-align: center; }
+        th, td { border: 1px solid #bdc3c7; padding: 8px; font-weight: bold; }
+        th { background-color: #ecf0f1; color: #2c3e50; }
+        .tl-unit { min-width: 25px; font-size: 0.85rem; }
+        .tl-cell { height: 35px; transition: background 0.3s; }
+        .ex-status { background: #34495e; color: white; padding: 15px; border-radius: 8px; text-align: center; font-size: 1.2rem; min-height: 50px; }
+        
+        /* تنسيقات تدريب 7 (صفحة 10) */
+        .ex7-select { width: 100%; padding: 8px; margin-top: 15px; border-radius: 5px; border: 1px solid #bdc3c7; font-family: inherit; font-size: 1rem; font-weight: bold; color: #2c3e50; text-align: center; cursor: pointer; }
+
+        /* تنسيقات إدارة الذاكرة (صفحة 11) */
+        .mem-block { padding: 8px; margin: 3px 0; border-radius: 4px; font-weight: bold; font-size: 0.9rem; border: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; transition: all 0.4s; }
+        .mem-used { background-color: #e74c3c; color: white; border-color: #c0392b; opacity: 0.8; }
+        .mem-free { background-color: #2ecc71; color: white; border-color: #27ae60; }
+        .mem-assigned { background-color: #3498db; color: white; border-color: #2980b9; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .mem-la { background-color: #34495e; color: white; border-color: #2c3e50; }
+
+        /* أسئلة التقويم */
+        .quiz-question { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .quiz-question h4 { margin-top: 0; color: #2c3e50; }
+        .options label { display: block; margin: 10px 0; cursor: pointer; padding: 8px; border-radius: 5px; transition: background 0.2s; }
+        .options label:hover { background: #e9ecef; }
+        .feedback { display: none; padding: 10px; margin-top: 10px; border-radius: 5px; font-weight: bold; }
+        .feedback.correct { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .feedback.wrong { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* الحركات */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(10px); } 50% { transform: translateX(-10px); } 75% { transform: translateX(10px); } 100% { transform: translateX(0); } }
+        .shake-error { animation: shake 0.4s ease-in-out; border-color: #e74c3c !important; box-shadow: 0 0 15px rgba(231, 76, 60, 0.6) !important; }
+        @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⚙️ محاكاة: إدارة العمليات وأنظمة التشغيل</h1>
+        <div class="legend">
+            <div class="legend-item"><span class="legend-color" style="background: var(--color-new);"></span> جديدة</div>
+            <div class="legend-item"><span class="legend-color" style="background: var(--color-ready);"></span> جاهزية</div>
+            <div class="legend-item"><span class="legend-color" style="background: var(--color-running);"></span> تشغيل</div>
+            <div class="legend-item"><span class="legend-color" style="background: var(--color-waiting);"></span> انتظار</div>
+            <div class="legend-item"><span class="legend-color" style="background: var(--color-terminated);"></span> إنهاء</div>
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('guided', this)">الرحلة الموجهة</button>
+        <button class="tab-btn" onclick="switchTab('free', this)">الوضع الحر</button>
+        <button class="tab-btn" onclick="switchTab('ex4', this)">شرح تدريب 4</button>
+        <button class="tab-btn" onclick="switchTab('ex5', this)">شرح تدريب 5</button>
+        <button class="tab-btn" onclick="switchTab('ex7', this)">تدريب (حالات)</button>
+        <button class="tab-btn" onclick="switchTab('ex_mem', this)">إدارة الذاكرة (ص 11) 🧠</button>
+        <button class="tab-btn" onclick="switchTab('quiz', this)">التقويم</button>
+    </div>
+
+    <div id="guided" class="tab-content active">
+        <div class="metaphor-banner" id="guide-metaphor">🍔 التشبيه: تخيل أنك في مطعم، والبرنامج هو وجبة تريد طلبها.</div>
+        <div class="hardware-layout" id="guided-hw">
+            <div class="hw-component" id="g-user"><h3>المستخدم 🧑‍💻</h3><div id="g-area-user"></div></div>
+            <div class="hw-component" id="g-disk"><h3>القرص الصلب 💾</h3><div id="g-area-disk"></div></div>
+            <div class="hw-component" id="g-ram">
+                <h3>الذاكرة الرئيسة 🧠</h3>
+                <div class="ram-areas">
+                    <div class="ram-area" id="g-area-new"><div class="ram-area-title">عملية جديدة (New)</div></div>
+                    <div class="ram-area" id="g-area-ready"><div class="ram-area-title">طابور الجاهزية (Ready Queue)</div></div>
+                    <div class="ram-area" id="g-area-wait"><div class="ram-area-title">منطقة الانتظار (Waiting)</div></div>
+                </div>
+            </div>
+            <div class="hw-component" id="g-cpu">
+                <h3>المعالج ⚙️</h3><div class="cpu-badge">⚠️ عملية واحدة فقط!</div>
+                <div id="g-area-cpu" style="min-height: 80px;"></div>
+            </div>
+            <div class="hw-component" id="g-screen"><h3>الشاشة 🖥️</h3><div id="g-area-screen"></div></div>
+        </div>
+        <div class="controls-bar">
+            <button class="nav-btn" id="btn-prev" onclick="guidePrev()" disabled>السابق</button>
+            <div id="step-text">1. ماذا يحدث عندما تنقر على أيقونة برنامج (مثل المتصفح)؟</div>
+            <button class="nav-btn" id="btn-next" onclick="guideNext()">التالي</button>
+        </div>
+    </div>
+
+    <div id="free" class="tab-content">
+        <div class="metaphor-banner">🎯 <b>جرّب بنفسك:</b> أضف برامج وحاول تشغيلها. انتبه للقاعدة الذهبية: المعالج يقبل عملية واحدة فقط.</div>
+        <div class="free-play-controls">
+            <button class="add-btn" onclick="addProcess('متصفح')">+ فتح متصفح 🌐</button>
+            <button class="add-btn" onclick="addProcess('لعبة')">+ تشغيل لعبة 🎮</button>
+            <button class="add-btn" onclick="addProcess('رسام')">+ فتح الرسام 🎨</button>
+        </div>
+        <div class="hardware-layout">
+            <div class="hw-component"><h3>القرص الصلب 💾</h3><span class="hw-desc">النسخ الأصلية محفوظة هنا</span></div>
+            <div class="hw-component">
+                <h3>الذاكرة (RAM) 🧠</h3>
+                <div class="ram-areas">
+                    <div class="ram-area" id="f-area-ready"><div class="ram-area-title">طابور الجاهزية (Ready)</div></div>
+                    <div class="ram-area" id="f-area-wait"><div class="ram-area-title">الانتظار (Waiting)</div></div>
+                </div>
+            </div>
+            <div class="hw-component" id="f-cpu-box"><h3>المعالج (CPU) ⚙️</h3><div class="cpu-badge">⚠️ عملية واحدة فقط!</div><div id="f-area-cpu" style="min-height: 100px;"></div></div>
+            <div class="hw-component"><h3>منطقة الإنهاء 🗑️</h3><div id="f-area-term"></div></div>
+        </div>
+    </div>
+
+    <div id="ex4" class="tab-content">
+        <div class="info-banner">📚 <b>شرح تدريب 4 (التنفيذ المتسلسل):</b> ينفذ نظام التشغيل البرامج بطريقة متسلسلة، الأول تلو الآخر.</div>
+        <div class="ex-container">
+            <div class="controls-bar" style="justify-content: center; gap: 20px;">
+                <button class="action-btn" onclick="resetEx4()">إعادة البدء 🔄</button>
+                <button class="action-btn green" id="ex4-step" onclick="stepEx4()">تتبع الوحدة الزمنية ⏱️</button>
+                <button class="action-btn" onclick="solveEx4()">إظهار الحل كاملاً ⏭️</button>
+            </div>
+            <div class="ex-status" id="ex4-msg">اضغط للتتبع</div>
+            <div class="table-responsive"><table id="ex4-timeline"></table></div>
+        </div>
+    </div>
+
+    <div id="ex5" class="tab-content">
+        <div class="info-banner" style="background-color: #e8f8f5; border-right-color: #2ecc71;">🚀 <b>شرح تدريب 5 (التنفيذ المتزامن):</b> استخدام القرص والطابعة <b>في نفس الوقت</b> يخفض الوقت إلى 17 وحدة!</div>
+        <div class="ex-container">
+            <div class="controls-bar" style="justify-content: center; gap: 20px;">
+                <button class="action-btn" onclick="resetEx5()">إعادة البدء 🔄</button>
+                <button class="action-btn green" id="ex5-step" onclick="stepEx5()">تتبع الوحدة الزمنية ⏱️</button>
+                <button class="action-btn" onclick="solveEx5()">إظهار الحل كاملاً ⏭️</button>
+            </div>
+            <div class="ex-status" id="ex5-msg">اضغط للتتبع</div>
+            <div class="table-responsive"><table id="ex5-timeline"></table></div>
+        </div>
+    </div>
+
+    <div id="ex7" class="tab-content">
+        <div class="info-banner" style="background-color: #fdf2e9; border-right-color: #e67e22;">
+            🧩 <b>شرح تدريب 7 (اكتشاف حالات العمليات - صفحة 10):</b> في الوحدة الزمنية <b>السابعة (7)</b>، بافتراض أن المعالج يُشغل P3.. أين تقع بقية البرامج?
+        </div>
+        <div class="hardware-layout" style="justify-content: center; flex-wrap: wrap;">
+            <div class="hw-component" style="border-top: 5px solid var(--color-new);"><select id="ex7-new" class="ex7-select"><option value="">--جديد--</option><option value="P4">P4</option><option value="فارغ">فارغ</option></select></div>
+            <div class="hw-component" style="border-top: 5px solid var(--color-ready);"><select id="ex7-ready" class="ex7-select"><option value="">--جاهزة--</option><option value="P4">P4</option><option value="فارغ">فارغ</option></select></div>
+            <div class="hw-component" style="border-top: 5px solid var(--color-running);"><select id="ex7-running" class="ex7-select"><option value="">--تشغيل--</option><option value="P3">P3</option></select></div>
+            <div class="hw-component" style="border-top: 5px solid var(--color-waiting);"><select id="ex7-waiting" class="ex7-select"><option value="">--انتظار--</option><option value="P2">P2</option></select></div>
+            <div class="hw-component" style="border-top: 5px solid var(--color-terminated);"><select id="ex7-terminated" class="ex7-select"><option value="">--إنهاء--</option><option value="P1">P1</option></select></div>
+        </div>
+        <div class="controls-bar" style="justify-content: center;"><button class="action-btn green" onclick="checkEx7()">تحقق من التوزيع</button></div>
+        <div id="ex7-feedback" class="ex-status" style="display: none; margin-top: 20px; font-size: 1rem; line-height: 1.8;"></div>
+    </div>
+
+    <div id="ex_mem" class="tab-content">
+        <div class="info-banner" style="background-color: #f4ecf8; border-right-color: #9b59b6;">
+            🧠 <b>التطوير والتنفيذ (إدارة الذاكرة - صفحة 11):</b> البرنامج يتوقع أن الذاكرة فارغة (عناوين منطقية من 0 إلى 9). لكن الذاكرة الحقيقية قد تكون مشغولة جزئياً. نظام التشغيل يقوم بـ <b>ربط العناوين (Address Binding)</b> للبحث عن الأماكن المتاحة ونقل البرنامج إليها!
+        </div>
+
+        <div class="ex-container">
+            <div class="controls-bar" style="justify-content: center; gap: 20px;">
+                <button class="action-btn" onclick="resetMemory()">إعادة الضبط 🔄</button>
+                <button class="action-btn purple" onclick="bindMemory()">تنفيذ عملية ربط العناوين آلياً 🔗</button>
+            </div>
+
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; align-items: flex-start;">
+                
+                <div class="hw-component" style="flex: 1.5; min-width: 220px; border-color: #2ecc71;">
+                    <h3 style="color: #27ae60;">الذاكرة الحقيقية RAM<br><small>(عناوين فيزيائية PA)</small></h3>
+                    <div id="physical-memory" style="display: flex; flex-direction: column; gap: 5px;"></div>
+                </div>
+
+                <div class="hw-component" style="flex: 1.5; min-width: 250px; border-color: #9b59b6;">
+                    <h3 style="color: #8e44ad;">جدول خريطة العناوين<br><small>(الجدول المكافئ ص 11)</small></h3>
+                    <table style="width: 100%; font-size: 0.95rem;">
+                        <thead><tr><th>العنوان المنطقي</th><th>العنوان الملموس</th></tr></thead>
+                        <tbody id="mapping-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="hw-component" style="flex: 1; min-width: 180px; border-color: #34495e;">
+                    <h3 style="color: #2c3e50;">البرنامج<br><small>(عناوين منطقية LA)</small></h3>
+                    <div id="logical-memory" style="display: flex; flex-direction: column; gap: 5px;"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz" class="tab-content">
+        <h2>اختبر فهمك للعمليات</h2>
+        <div id="quiz-container"></div>
+        <button class="action-btn green" onclick="checkQuiz()">تحقق من الإجابات</button>
+    </div>
+
+    <script>
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if(btn) btn.classList.add('active');
+        }
+
+        function getProcessColor(pName) {
+            if(pName === 'P1') return 'var(--c-p1)'; if(pName === 'P2') return 'var(--c-p2)';
+            if(pName === 'P3') return 'var(--c-p3)'; if(pName === 'P4') return 'var(--c-p4)'; return '';
+        }
+
+        // --- 1. الوضع الموجه ---
+        const guideSteps = [
+            { text: "1. النقرة: فتح أيقونة البرنامج.", metaphor: "🍔 التشبيه: الزبون يقرر الطلب.", activeHw: "g-user", chipText: "أيقونة", chipColor: "#34495e", chipLocation: "g-area-user" },
+            { text: "2. البحث في القرص عن الملفات.", metaphor: "📦 التشبيه: البحث في المخزن.", activeHw: "g-disk", chipText: "ملفات", chipColor: "#34495e", chipLocation: "g-area-disk" },
+            { text: "3. (عملية جديدة): تُنسخ للذاكرة.", metaphor: "🛒 التشبيه: إحضار المقادير.", activeHw: "g-ram", chipText: "عملية", chipColor: "var(--color-new)", chipLocation: "g-area-new" },
+            { text: "4. (الجاهزية): تقف في طابور الجاهزية.", metaphor: "🎫 التشبيه: انتظار الطباخ.", activeHw: "g-ram", chipText: "عملية", chipColor: "var(--color-ready)", chipLocation: "g-area-ready" },
+            { text: "5. (التشغيل): المعالج ينفذ دورتها.", metaphor: "👨‍🍳 التشبيه: الطباخ يبدأ.", activeHw: "g-cpu", chipText: "عملية", chipColor: "var(--color-running)", chipLocation: "g-area-cpu" },
+            { text: "6. (الانتظار): تطلب إدخالاً.", metaphor: "⏳ التشبيه: انتظار مورد إضافي.", activeHw: "g-ram", chipText: "انتظار", chipColor: "var(--color-waiting)", chipLocation: "g-area-wait" },
+            { text: "7. (الجاهزية): ⚠️ تعود للجاهزية وليس للمعالج!", metaphor: "🚦 التشبيه: المورد وصل، تعود للطابور.", activeHw: "g-ram", chipText: "مستعدة", chipColor: "var(--color-ready)", chipLocation: "g-area-ready" },
+            { text: "8. (التشغيل والعرض): تظهر للمستخدم.", metaphor: "🍽️ التشبيه: تقديم الوجبة.", activeHw: ["g-cpu", "g-screen"], chipText: "عرض", chipColor: "var(--color-running)", chipLocation: "g-area-screen" },
+            { text: "9. (الإنهاء): تحذف من الذاكرة.", metaphor: "🧹 التشبيه: تنظيف الطاولة.", activeHw: "g-ram", chipText: "انتهت", chipColor: "var(--color-terminated)", chipLocation: "" }
+        ];
+        let currentStep = 0; let gChip = document.createElement('div'); gChip.className = 'process-chip';
+        function renderGuideStep() {
+            const step = guideSteps[currentStep]; document.getElementById('step-text').innerHTML = step.text; document.getElementById('guide-metaphor').innerHTML = step.metaphor;
+            document.querySelectorAll('.hw-component').forEach(el => el.classList.remove('glow'));
+            if(Array.isArray(step.activeHw)) step.activeHw.forEach(id => document.getElementById(id).classList.add('glow')); else if (step.activeHw) document.getElementById(step.activeHw).classList.add('glow');
+            if (step.chipLocation !== "") { gChip.style.display = 'block'; gChip.innerText = step.chipText; gChip.style.backgroundColor = step.chipColor; document.getElementById(step.chipLocation).appendChild(gChip); } else { gChip.style.display = 'none'; }
+            document.getElementById('btn-prev').disabled = currentStep === 0; document.getElementById('btn-next').disabled = currentStep === guideSteps.length - 1;
+        }
+        function guideNext() { if(currentStep < guideSteps.length - 1) { currentStep++; renderGuideStep(); } }
+        function guidePrev() { if(currentStep > 0) { currentStep--; renderGuideStep(); } }
+
+        // --- 2. الوضع الحر ---
+        let processIdCounter = 1;
+        function addProcess(name) {
+            let pid = 'p_' + processIdCounter++; let chip = document.createElement('div'); chip.className = 'process-chip'; chip.id = pid; chip.style.backgroundColor = 'var(--color-ready)';
+            chip.innerHTML = `<span>${name}</span><div class="process-controls" id="ctrl_${pid}"></div>`;
+            document.getElementById('f-area-ready').appendChild(chip); updateControls(pid, 'ready');
+        }
+        function moveProcess(pid, targetState) {
+            const chip = document.getElementById(pid); const cpuArea = document.getElementById('f-area-cpu');
+            if (targetState === 'running' && cpuArea.children.length > 0) { document.getElementById('f-cpu-box').classList.add('shake-error'); setTimeout(() => { document.getElementById('f-cpu-box').classList.remove('shake-error'); }, 1000); return; }
+            if (targetState === 'running') { chip.style.backgroundColor = 'var(--color-running)'; cpuArea.appendChild(chip); } else if (targetState === 'waiting') { chip.style.backgroundColor = 'var(--color-waiting)'; document.getElementById('f-area-wait').appendChild(chip); } else if (targetState === 'ready') { chip.style.backgroundColor = 'var(--color-ready)'; document.getElementById('f-area-ready').appendChild(chip); } else if (targetState === 'terminated') { chip.style.backgroundColor = 'var(--color-terminated)'; document.getElementById('f-area-term').appendChild(chip); document.getElementById(`ctrl_${pid}`).innerHTML = ''; return; }
+            updateControls(pid, targetState);
+        }
+        function updateControls(pid, state) {
+            const ctrlArea = document.getElementById(`ctrl_${pid}`); ctrlArea.innerHTML = ''; 
+            if (state === 'ready') { ctrlArea.innerHTML = `<button class="process-btn" onclick="moveProcess('${pid}', 'running')">للمعالج</button>`; } else if (state === 'running') { ctrlArea.innerHTML = `<button class="process-btn" onclick="moveProcess('${pid}', 'waiting')">انتظار</button><button class="process-btn" onclick="moveProcess('${pid}', 'ready')">للجاهزية</button><button class="process-btn" onclick="moveProcess('${pid}', 'terminated')">إنهاء</button>`; } else if (state === 'waiting') { ctrlArea.innerHTML = `<button class="process-btn" onclick="moveProcess('${pid}', 'ready')">مورد متاح</button>`; }
+        }
+
+        // --- جداول التدريبات 4 و 5 ---
+        function buildTimelineTable(tableId, prefix) {
+            const table = document.getElementById(tableId); let html = `<tr><th>الزمن</th>`;
+            for(let i=1; i<=24; i++) html += `<th class="tl-unit">${i}</th>`; html += `</tr><tr id="row-hd"><td>القرص</td>`;
+            for(let i=1; i<=24; i++) html += `<td class="tl-cell" id="${prefix}-hd-${i}"></td>`; html += `</tr><tr id="row-pr"><td>الطابعة</td>`;
+            for(let i=1; i<=24; i++) html += `<td class="tl-cell" id="${prefix}-pr-${i}"></td>`; html += `</tr>`; table.innerHTML = html;
+        }
+
+        const ex4Sequence = [ { t:1, dev:'hd', p:'P1', msg:"P1 يقرأ من القرص" }, { t:2, dev:'hd', p:'P1', msg:"P1 يقرأ" }, { t:3, dev:'pr', p:'P1', msg:"P1 يطبع" }, { t:4, dev:'pr', p:'P1', msg:"P1 يطبع" }, { t:5, dev:'pr', p:'P1', msg:"P1 انتهى" }, { t:6, dev:'hd', p:'P2', msg:"الآن فقط يبدأ P2" }, { t:7, dev:'hd', p:'P2', msg:"P2 يقرأ" }, { t:8, dev:'hd', p:'P2', msg:"P2 يقرأ" }, { t:9, dev:'hd', p:'P2', msg:"P2 أنهى القراءة" }, { t:10, dev:'pr', p:'P2', msg:"P2 يطبع" }, { t:11, dev:'pr', p:'P2', msg:"P2 يطبع" }, { t:12, dev:'pr', p:'P2', msg:"P2 يطبع" }, { t:13, dev:'pr', p:'P2', msg:"P2 يطبع" }, { t:14, dev:'pr', p:'P2', msg:"P2 انتهى" }, { t:15, dev:'hd', p:'P3', msg:"الآن يبدأ P3" }, { t:16, dev:'hd', p:'P3', msg:"P3 يقرأ" }, { t:17, dev:'hd', p:'P3', msg:"P3 أنهى القراءة" }, { t:18, dev:'pr', p:'P3', msg:"P3 يطبع" }, { t:19, dev:'pr', p:'P3', msg:"P3 يطبع" }, { t:20, dev:'pr', p:'P3', msg:"P3 يطبع" }, { t:21, dev:'pr', p:'P3', msg:"P3 انتهى" }, { t:22, dev:'hd', p:'P4', msg:"أخيراً يبدأ P4" }, { t:23, dev:'pr', p:'P4', msg:"P4 يطبع" }, { t:24, dev:'pr', p:'P4', msg:"انتهت جميع البرامج في 24 وحدة!" } ];
+        let currentEx4Tick = 0;
+        function resetEx4() { currentEx4Tick = 0; document.querySelectorAll('#ex4-timeline .tl-cell').forEach(c => { c.style.backgroundColor = ''; c.innerText = ''; }); document.getElementById('ex4-msg').innerText = "تمت إعادة الضبط."; document.getElementById('ex4-step').disabled = false; }
+        function stepEx4() { if(currentEx4Tick < 24) { const step = ex4Sequence[currentEx4Tick]; const cell = document.getElementById(`c4-${step.dev}-${step.t}`); cell.style.backgroundColor = getProcessColor(step.p); cell.innerText = step.p; document.getElementById('ex4-msg').innerText = `الوحدة ${step.t}: ${step.msg}`; currentEx4Tick++; } if(currentEx4Tick >= 24) document.getElementById('ex4-step').disabled = true; }
+        function solveEx4() { while(currentEx4Tick < 24) stepEx4(); }
+
+        const ex5Sequence = [ { t:1, hd:'P1', pr:null, msg:"P1 يقرأ" }, { t:2, hd:'P1', pr:null, msg:"P1 يقرأ" }, { t:3, hd:'P2', pr:'P1', msg:"تزامن! P1 يطبع و P2 يقرأ" }, { t:4, hd:'P2', pr:'P1', msg:"تزامن مستمر" }, { t:5, hd:'P2', pr:'P1', msg:"P1 أنهى. P2 يقرأ" }, { t:6, hd:'P2', pr:null, msg:"P2 يكمل قراءة" }, { t:7, hd:'P3', pr:'P2', msg:"تزامن! P2 يطبع و P3 يقرأ" }, { t:8, hd:'P3', pr:'P2', msg:"تزامن مستمر" }, { t:9, hd:'P3', pr:'P2', msg:"P3 أنهى قراءة. P2 يطبع" }, { t:10, hd:'P4', pr:'P2', msg:"تزامن! P4 يقرأ و P2 يطبع" }, { t:11, hd:null, pr:'P2', msg:"P4 أنهى قراءة. P2 يطبع وينهي" }, { t:12, hd:null, pr:'P3', msg:"الطابعة متاحة لـ P3" }, { t:13, hd:null, pr:'P3', msg:"P3 يطبع" }, { t:14, hd:null, pr:'P3', msg:"P3 يطبع" }, { t:15, hd:null, pr:'P3', msg:"P3 أنهى الطباعة" }, { t:16, hd:null, pr:'P4', msg:"الطابعة متاحة لـ P4" }, { t:17, hd:null, pr:'P4', msg:"P4 أنهى. الوقت الإجمالي 17 فقط!" } ];
+        let currentEx5Tick = 0;
+        function resetEx5() { currentEx5Tick = 0; document.querySelectorAll('#ex5-timeline .tl-cell').forEach(c => { c.style.backgroundColor = ''; c.innerText = ''; }); document.getElementById('ex5-msg').innerText = "تمت إعادة الضبط."; document.getElementById('ex5-step').disabled = false; }
+        function stepEx5() { if(currentEx5Tick < 17) { const step = ex5Sequence[currentEx5Tick]; if(step.hd) { const c = document.getElementById(`c5-hd-${step.t}`); c.style.backgroundColor = getProcessColor(step.hd); c.innerText = step.hd; } if(step.pr) { const c = document.getElementById(`c5-pr-${step.t}`); c.style.backgroundColor = getProcessColor(step.pr); c.innerText = step.pr; } document.getElementById('ex5-msg').innerText = `الوحدة ${step.t}: ${step.msg}`; currentEx5Tick++; } if(currentEx5Tick >= 17) document.getElementById('ex5-step').disabled = true; }
+        function solveEx5() { while(currentEx5Tick < 17) stepEx5(); }
+
+        // --- تدريب 7 ---
+        function checkEx7() {
+            const run = document.getElementById('ex7-running').value; const wait = document.getElementById('ex7-waiting').value; const term = document.getElementById('ex7-terminated').value; const ready = document.getElementById('ex7-ready').value; const new_st = document.getElementById('ex7-new').value;
+            const fb = document.getElementById('ex7-feedback'); fb.style.display = 'block';
+            if (run === 'P3' && term === 'P1' && wait === 'P2' && (ready === 'P4' || new_st === 'P4')) {
+                fb.style.backgroundColor = '#2ecc71'; fb.innerHTML = "<b>✅ إجابة ممتازة!</b> P1 انتهى، P2 يطبع (انتظار)، P3 بالمعالج (تشغيل)، P4 لم يحن دوره.";
+            } else { fb.style.backgroundColor = '#e74c3c'; fb.innerHTML = "<b>❌ حاول مجدداً:</b> تذكر من انتهى تماماً، ومن يحتاج طابعة (ينتظر)، ومن داخل المعالج."; }
+        }
+
+        // --- إدارة الذاكرة (صفحة 11) مبنية بدقة على صورة الكتاب المرفقة ---
+        const physicalMemoryConfig = [
+            { pa: '...', status: 'used', text: 'غير متاحة' },
+            { pa: '123', status: 'used', text: 'غير متاحة' },
+            { pa: '124', status: 'free', text: 'متاحة' },
+            { pa: '125', status: 'free', text: 'متاحة' },
+            { pa: '126', status: 'used', text: 'غير متاحة' },
+            { pa: '127', status: 'free', text: 'متاحة' },
+            { pa: '...', status: 'used', text: 'غير متاحة' },
+            { pa: '534', status: 'free', text: 'متاحة' },
+            { pa: '535', status: 'used', text: 'غير متاحة' },
+            { pa: '536', status: 'used', text: 'غير متاحة' },
+            { pa: '537', status: 'free', text: 'متاحة' },
+            { pa: '538', status: 'free', text: 'متاحة' },
+            { pa: '539', status: 'free', text: 'متاحة' },
+            { pa: '...', status: 'used', text: 'غير متاحة' },
+            { pa: '876', status: 'free', text: 'متاحة' },
+            { pa: '877', status: 'free', text: 'متاحة' },
+            { pa: '878', status: 'used', text: 'غير متاحة' },
+            { pa: '879', status: 'free', text: 'متاحة' },
+            { pa: '880', status: 'used', text: 'غير متاحة' },
+            { pa: '...', status: 'used', text: 'غير متاحة' }
+        ];
+        
+        let memCurrentStep = 0;
+        
+        function initMemory() {
+            const logicalDiv = document.getElementById('logical-memory');
+            const physicalDiv = document.getElementById('physical-memory');
+            const tableBody = document.getElementById('mapping-table-body');
+            
+            logicalDiv.innerHTML = ''; physicalDiv.innerHTML = ''; tableBody.innerHTML = '';
+            
+            // بناء العناوين المنطقية 0-9
+            for(let i=0; i<=9; i++) {
+                logicalDiv.innerHTML += `<div class="mem-block mem-la" id="la-${i}"><span>العنوان (LA-${i})</span><span id="la-map-${i}">...</span></div>`;
+                tableBody.innerHTML += `<tr id="tr-map-${i}"><td style="color:#e91e63; font-weight:bold;">${i}</td><td id="td-pa-${i}" style="color:#c0392b; font-weight:bold;">--</td></tr>`;
+            }
+            
+            // بناء العناوين الملموسة بناءً على الصورة
+            physicalMemoryConfig.forEach((block, index) => {
+                let statusClass = block.status === 'used' ? 'mem-used' : 'mem-free';
+                let paLabel = block.pa === '...' ? '↓' : `PA - ${block.pa}`;
+                physicalDiv.innerHTML += `<div class="mem-block ${statusClass}" id="pa-slot-${index}"><span>${paLabel}</span><span class="pa-status">${block.text}</span></div>`;
+            });
+            memCurrentStep = 0;
+        }
+
+        function bindMemory() {
+            if(memCurrentStep > 9) return;
+            
+            // البحث عن أول مكان متاح في الذاكرة الفيزيائية
+            let targetPA = null;
+            let targetIndex = -1;
+            for(let i=0; i < physicalMemoryConfig.length; i++) {
+                if(physicalMemoryConfig[i].status === 'free') {
+                    targetPA = physicalMemoryConfig[i].pa;
+                    targetIndex = i;
+                    break;
+                }
+            }
+            
+            if(targetPA !== null) {
+                // تحديث الحالة
+                physicalMemoryConfig[targetIndex].status = 'assigned';
+                
+                // تحديث العناوين المنطقية
+                document.getElementById(`la-${memCurrentStep}`).style.backgroundColor = '#9b59b6';
+                document.getElementById(`la-${memCurrentStep}`).style.borderColor = '#8e44ad';
+                document.getElementById(`la-map-${memCurrentStep}`).innerText = `→ PA-${targetPA}`;
+                
+                // تحديث الذاكرة الحقيقية
+                let paDiv = document.getElementById(`pa-slot-${targetIndex}`);
+                paDiv.className = 'mem-block mem-assigned';
+                paDiv.querySelector('.pa-status').innerText = `محجوز لـ (${memCurrentStep})`;
+                
+                // تحديث الجدول المكافئ ليتطابق مع الصورة تماماً
+                document.getElementById(`td-pa-${memCurrentStep}`).innerText = `${targetPA}`;
+                document.getElementById(`tr-map-${memCurrentStep}`).style.backgroundColor = '#fdf2e9';
+                
+                memCurrentStep++;
+                
+                // تنفيذ آلي متباعد للحركة البصرية
+                setTimeout(bindMemory, 600);
+            }
+        }
+
+        function resetMemory() {
+            physicalMemoryConfig.forEach(block => {
+                if(block.status === 'assigned') block.status = 'free';
+            });
+            initMemory();
+        }
+
+        // --- التقويم العام ---
+        const quizData = [
+            { q: "1. أين يتم حفظ البرامج بشكل دائم؟", options: ["في المعالج (CPU)", "في الذاكرة الرئيسة (RAM)", "في القرص الصلب"], ans: 2 },
+            { q: "2. ما هي القاعدة الذهبية للمعالج (CPU) في اللحظة الزمنية الواحدة؟", options: ["تنفذ برامج معاً", "تنفذ عملية واحدة فقط", "لا تنفذ أي عملية"], ans: 1 },
+            { q: "3. عندما تنتهي عملية من طلب الإدخال/الإخراج (الانتظار)، إلى أين تذهب؟", options: ["إلى المعالج مباشرة", "إلى طابور الجاهزية (Ready)", "إلى حالة الإنهاء"], ans: 1 },
+            { q: "4. تقنية (تعددية البرامج) تعني حفظ أكثر من برنامج في نفس الوقت داخل:", options: ["القرص الصلب", "الذاكرة الرئيسة (RAM)", "وحدة المعالجة المركزية"], ans: 1 },
+            { q: "5. في إدارة الذاكرة, تُسمى العناوين المتسلسلة (0، 1، 2..) التي يراها البرنامج:", options: ["عناوين فيزيائية (ملموسة)", "عناوين منطقية (Logical)", "عناوين عشوائية"], ans: 1 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderGuideStep();
+            buildTimelineTable('ex4-timeline', 'c4'); buildTimelineTable('ex5-timeline', 'c5');
+            initMemory();
+            
+            const quizContainer = document.getElementById('quiz-container');
+            quizData.forEach((item, index) => {
+                let qDiv = document.createElement('div'); qDiv.className = 'quiz-question';
+                qDiv.innerHTML = `<h4>${item.q}</h4><div class="options">` + item.options.map((opt, i) => `<label><input type="radio" name="q${index}" value="${i}"> ${opt}</label>`).join('') + `</div><div class="feedback" id="feed_${index}"></div>`;
+                quizContainer.appendChild(qDiv);
+            });
+        });
+
+        function checkQuiz() {
+            quizData.forEach((item, index) => {
+                const sel = document.querySelector(`input[name="q${index}"]:checked`); const feedDiv = document.getElementById(`feed_${index}`); feedDiv.style.display = 'block';
+                if (sel) { if (parseInt(sel.value) === item.ans) { feedDiv.className = 'feedback correct'; feedDiv.innerText = "✅ صحيح!"; } else { feedDiv.className = 'feedback wrong'; feedDiv.innerText = "❌ إجابة خاطئة."; } } else { feedDiv.className = 'feedback wrong'; feedDiv.innerText = "⚠️ اختر إجابة."; }
+            });
+        }
+    </script>
+</body>
+</html>
